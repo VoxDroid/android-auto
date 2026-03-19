@@ -128,24 +128,30 @@ fi
 log_info "Installing JetBrains Mono Nerd Font for Termux..."
 TERMUX_FONT_DIR="${HOME}/.termux"
 TERMUX_FONT_FILE="${TERMUX_FONT_DIR}/font.ttf"
+TMPDIR="${TMPDIR:-${PREFIX}/tmp}"
+TMPZIP="$TMPDIR/JetBrainsMono.zip"
+TMPFONTDIR="$TMPDIR/jetbrains-fonts"
 
 mkdir -p "${TERMUX_FONT_DIR}"
+mkdir -p "${TMPDIR}"
 
 # Try to install via Termux package, otherwise download from Nerd Fonts release
 if pkg install -y fonts-jetbrains-mono-nerd >/dev/null 2>&1; then
     log_info "Installed fonts-jetbrains-mono-nerd package"
 else
     log_info "Downloading JetBrains Mono Nerd Font from Nerd Fonts releases..."
-    curl -fLo /tmp/JetBrainsMono.zip https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip || log_error "Failed to download JetBrains Mono Nerd Font"
-    unzip -o /tmp/JetBrainsMono.zip -d /tmp/jetbrains-fonts || log_error "Failed to unzip JetBrains Mono Nerd Font"
+    curl -fLo "$TMPZIP" https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip || log_error "Failed to download JetBrains Mono Nerd Font"
+    unzip -o "$TMPZIP" -d "$TMPFONTDIR" || log_error "Failed to unzip JetBrains Mono Nerd Font"
+
     # Prefer the Regular font file if available
-    FONT_PATH=$(find /tmp/jetbrains-fonts -type f -iname '*Regular*.ttf' | head -n1)
+    FONT_PATH=$(find "$TMPFONTDIR" -type f -iname '*Regular*.ttf' | head -n1)
     if [[ -z "$FONT_PATH" ]]; then
-        FONT_PATH=$(find /tmp/jetbrains-fonts -type f -iname '*.ttf' | head -n1)
+        FONT_PATH=$(find "$TMPFONTDIR" -type f -iname '*.ttf' | head -n1)
     fi
     if [[ -z "$FONT_PATH" ]]; then
         log_error "Could not find a .ttf file in the downloaded archive"
     fi
+
     cp -f "$FONT_PATH" "$TERMUX_FONT_FILE" || log_error "Failed to copy font to ${TERMUX_FONT_FILE}"
     log_info "JetBrains Mono Nerd Font installed to ${TERMUX_FONT_FILE}"
 fi
