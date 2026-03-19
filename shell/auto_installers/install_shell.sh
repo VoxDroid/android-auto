@@ -20,6 +20,16 @@ if ! command -v termux-info >/dev/null 2>&1; then
     log_error "This script is intended to be run inside Termux on Android."
 fi
 
+# Determine Termux prefix (fixes cases where PREFIX is mis-set)
+TERMUX_PREFIX="${PREFIX:-}"
+if [[ -z "$TERMUX_PREFIX" || ! -x "$TERMUX_PREFIX/bin/sh" ]]; then
+    TERMUX_PREFIX="$(dirname "$(dirname "$(command -v sh 2>/dev/null || true)")")"
+fi
+if [[ -z "$TERMUX_PREFIX" || ! -x "$TERMUX_PREFIX/bin/sh" ]]; then
+    log_error "Could not determine Termux prefix; ensure you are running inside Termux."
+fi
+export PREFIX="$TERMUX_PREFIX"
+
 read -p "Install Zsh + dependencies + JetBrains Mono Nerd Font in Termux? (y/N): " confirm
 if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
     log_error "Script execution cancelled"
@@ -34,6 +44,23 @@ pkg install -y zsh git curl wget unzip fontconfig || log_error "Failed to instal
 
 log_info "Installing Zsh plugins (autosuggestions, syntax highlighting)..."
 pkg install -y zsh-autosuggestions zsh-syntax-highlighting || log_warn "Failed to install zsh plugin packages"
+
+TERMUX_ZSH_PLUGIN_DIR="${TERMUX_PREFIX}/share/zsh/plugins"
+
+# Verify plugin installation; fall back to cloning from GitHub if missing.
+if [[ ! -f "${TERMUX_ZSH_PLUGIN_DIR}/zsh-autosuggestions/zsh-autosuggestions.zsh" ]]; then
+    log_warn "zsh-autosuggestions not found; attempting to install from GitHub..."
+    rm -rf "${TERMUX_ZSH_PLUGIN_DIR}/zsh-autosuggestions"
+    mkdir -p "${TERMUX_ZSH_PLUGIN_DIR}"
+    git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions.git "${TERMUX_ZSH_PLUGIN_DIR}/zsh-autosuggestions" || log_warn "Failed to clone zsh-autosuggestions"
+fi
+
+if [[ ! -f "${TERMUX_ZSH_PLUGIN_DIR}/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]]; then
+    log_warn "zsh-syntax-highlighting not found; attempting to install from GitHub..."
+    rm -rf "${TERMUX_ZSH_PLUGIN_DIR}/zsh-syntax-highlighting"
+    mkdir -p "${TERMUX_ZSH_PLUGIN_DIR}"
+    git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting.git "${TERMUX_ZSH_PLUGIN_DIR}/zsh-syntax-highlighting" || log_warn "Failed to clone zsh-syntax-highlighting"
+fi
 
 log_info "Installing Oh My Zsh..."
 if [[ -d "${HOME}/.oh-my-zsh" ]]; then
@@ -65,9 +92,6 @@ else
 fi
 
 # Enable plugins if not already enabled
-PREFIX=${PREFIX:-/data/data/com.termux/files/usr}
-TERMUX_ZSH_PLUGIN_DIR="${PREFIX}/share/zsh/plugins"
-
 if ! grep -q "zsh-autosuggestions" "${HOME}/.zshrc"; then
     echo "source \"${TERMUX_ZSH_PLUGIN_DIR}/zsh-autosuggestions/zsh-autosuggestions.zsh\"" >> "${HOME}/.zshrc" || log_warn "Failed to enable zsh-autosuggestions"
 fi
