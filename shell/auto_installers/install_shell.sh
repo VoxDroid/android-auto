@@ -20,43 +20,33 @@ if ! command -v termux-info >/dev/null 2>&1; then
     log_error "This script is intended to be run inside Termux on Android."
 fi
 
-# Determine Termux prefix (fixes cases where PREFIX is corrupted/mis-set)
-TERMUX_PREFIX="${PREFIX:-${TERMUX_PREFIX:-}}"
+# Determine Termux prefix
+TERMUX_PREFIX="${PREFIX:-}"
 
-# Fix common typo-based prefixes (e.g. "com.ternux" / "cin.ternux")
-fix_prefix_typos() {
-    local p="$1"
-    p="${p//com.ternux/com.termux}"
-    p="${p//cin.ternux/com.termux}"
-    echo "$p"
-}
-
-TERMUX_PREFIX="$(fix_prefix_typos "$TERMUX_PREFIX")"
-
-# Prefer the canonical Termux prefix if it exists
-if [[ -x "/data/data/com.termux/files/usr/bin/sh" ]]; then
+# Prefer canonical known locations if they exist
+if [[ -x "/data/data/com.termux/files/usr/bin/bash" ]]; then
     TERMUX_PREFIX="/data/data/com.termux/files/usr"
+elif [[ -x "/data/user/0/com.termux/files/usr/bin/bash" ]]; then
+    TERMUX_PREFIX="/data/user/0/com.termux/files/usr"
 fi
 
-# Fallback: try to derive prefix from the path of sh
-if [[ -z "$TERMUX_PREFIX" || ! -x "$TERMUX_PREFIX/bin/sh" ]]; then
-    SHPATH="$(command -v sh 2>/dev/null || true)"
-    if [[ -n "$SHPATH" ]]; then
-        SHPATH="$(fix_prefix_typos "$SHPATH")"
-        TERMUX_PREFIX="$(dirname "$(dirname "$SHPATH")")"
+# Fallback: derive prefix from the running bash
+if [[ -z "$TERMUX_PREFIX" || ! -x "$TERMUX_PREFIX/bin/bash" ]]; then
+    BASHPATH="$(command -v bash 2>/dev/null || true)"
+    if [[ -n "$BASHPATH" ]]; then
+        TERMUX_PREFIX="$(dirname "$(dirname "$BASHPATH")")"
     fi
 fi
 
-# Sanitize final path again in case it still contains common typos
-TERMUX_PREFIX="$(fix_prefix_typos "$TERMUX_PREFIX")"
-
-if [[ -z "$TERMUX_PREFIX" || ! -x "$TERMUX_PREFIX/bin/sh" ]]; then
-    log_error "Could not determine Termux prefix; ensure you are running inside Termux and that PREFIX is not corrupted."
+if [[ -z "$TERMUX_PREFIX" || ! -x "$TERMUX_PREFIX/bin/bash" ]]; then
+    log_error "Could not determine Termux prefix; ensure you are running inside Termux (prefix failed to resolve)."
 fi
 
 export PREFIX="$TERMUX_PREFIX"
 
+BASHPATH="$(command -v bash 2>/dev/null || true)"
 log_info "Detected Termux prefix: $TERMUX_PREFIX"
+log_info "Detected bash path: $BASHPATH"
 
 read -p "Install Zsh + dependencies + JetBrains Mono Nerd Font in Termux? (y/N): " confirm
 if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
