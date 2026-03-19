@@ -21,17 +21,13 @@ if ! command -v termux-info >/dev/null 2>&1; then
 fi
 
 # Determine Termux prefix
-TERMUX_PREFIX="${PREFIX:-}"
-
-# Prefer canonical known locations if they exist
+# Prefer the canonical Termux install location and force it to avoid typo / corruption issues.
 if [[ -x "/data/data/com.termux/files/usr/bin/bash" ]]; then
     TERMUX_PREFIX="/data/data/com.termux/files/usr"
 elif [[ -x "/data/user/0/com.termux/files/usr/bin/bash" ]]; then
     TERMUX_PREFIX="/data/user/0/com.termux/files/usr"
-fi
-
-# Fallback: derive prefix from the running bash
-if [[ -z "$TERMUX_PREFIX" || ! -x "$TERMUX_PREFIX/bin/bash" ]]; then
+else
+    # Fallback: derive prefix from the running bash
     BASHPATH="$(command -v bash 2>/dev/null || true)"
     if [[ -n "$BASHPATH" ]]; then
         TERMUX_PREFIX="$(dirname "$(dirname "$BASHPATH")")"
@@ -42,7 +38,10 @@ if [[ -z "$TERMUX_PREFIX" || ! -x "$TERMUX_PREFIX/bin/bash" ]]; then
     log_error "Could not determine Termux prefix; ensure you are running inside Termux (prefix failed to resolve)."
 fi
 
+# Force correct prefix/paths to avoid corrupted env vars (e.g. PREFIX=/data/data/com.ternux/...)
 export PREFIX="$TERMUX_PREFIX"
+export PATH="$PREFIX/bin:$PATH"
+export SHELL="$PREFIX/bin/bash"
 
 BASHPATH="$(command -v bash 2>/dev/null || true)"
 log_info "Detected Termux prefix: $TERMUX_PREFIX"
