@@ -125,38 +125,6 @@ if ! grep -q "zsh-syntax-highlighting" "${HOME}/.zshrc"; then
     echo "source \"${TERMUX_ZSH_PLUGIN_DIR}/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh\"" >> "${HOME}/.zshrc" || log_warn "Failed to enable zsh-syntax-highlighting"
 fi
 
-log_info "Installing JetBrains Mono Nerd Font for Termux..."
-TERMUX_FONT_DIR="${HOME}/.termux"
-TERMUX_FONT_FILE="${TERMUX_FONT_DIR}/font.ttf"
-TMPDIR="${TMPDIR:-${PREFIX}/tmp}"
-TMPZIP="$TMPDIR/JetBrainsMono.zip"
-TMPFONTDIR="$TMPDIR/jetbrains-fonts"
-
-mkdir -p "${TERMUX_FONT_DIR}"
-mkdir -p "${TMPDIR}"
-
-# Try to install via Termux package, otherwise download from Nerd Fonts release
-if pkg install -y fonts-jetbrains-mono-nerd >/dev/null 2>&1; then
-    log_info "Installed fonts-jetbrains-mono-nerd package"
-else
-    log_info "Downloading JetBrains Mono Nerd Font from Nerd Fonts releases..."
-    curl -fLo "$TMPZIP" https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip || log_error "Failed to download JetBrains Mono Nerd Font"
-    unzip -o "$TMPZIP" -d "$TMPFONTDIR" || log_error "Failed to unzip JetBrains Mono Nerd Font"
-
-    # Prefer the Regular font file if available
-    FONT_PATH=$(find "$TMPFONTDIR" -type f -iname '*Regular*.ttf' | head -n1)
-    if [[ -z "$FONT_PATH" ]]; then
-        FONT_PATH=$(find "$TMPFONTDIR" -type f -iname '*.ttf' | head -n1)
-    fi
-    if [[ -z "$FONT_PATH" ]]; then
-        log_error "Could not find a .ttf file in the downloaded archive"
-    fi
-
-    cp -f "$FONT_PATH" "$TERMUX_FONT_FILE" || log_error "Failed to copy font to ${TERMUX_FONT_FILE}"
-    log_info "JetBrains Mono Nerd Font installed to ${TERMUX_FONT_FILE}"
-fi
-
 log_info "Installation complete!"
 log_info "To use Zsh in Termux, run: zsh"
 log_info "To make Zsh the default shell, add 'exec zsh' to the end of ~/.bashrc or your shell startup file."
-log_info "If you changed the font, restart Termux and select the new font under Settings → Appearance → Font."
