@@ -23,6 +23,16 @@ fi
 # Determine Termux prefix (fixes cases where PREFIX is corrupted/mis-set)
 TERMUX_PREFIX="${PREFIX:-${TERMUX_PREFIX:-}}"
 
+# Fix common typo-based prefixes (e.g. "com.ternux" / "cin.ternux")
+fix_prefix_typos() {
+    local p="$1"
+    p="${p//com.ternux/com.termux}"
+    p="${p//cin.ternux/com.termux}"
+    echo "$p"
+}
+
+TERMUX_PREFIX="$(fix_prefix_typos "$TERMUX_PREFIX")"
+
 # Prefer the canonical Termux prefix if it exists
 if [[ -x "/data/data/com.termux/files/usr/bin/sh" ]]; then
     TERMUX_PREFIX="/data/data/com.termux/files/usr"
@@ -32,9 +42,13 @@ fi
 if [[ -z "$TERMUX_PREFIX" || ! -x "$TERMUX_PREFIX/bin/sh" ]]; then
     SHPATH="$(command -v sh 2>/dev/null || true)"
     if [[ -n "$SHPATH" ]]; then
+        SHPATH="$(fix_prefix_typos "$SHPATH")"
         TERMUX_PREFIX="$(dirname "$(dirname "$SHPATH")")"
     fi
 fi
+
+# Sanitize final path again in case it still contains common typos
+TERMUX_PREFIX="$(fix_prefix_typos "$TERMUX_PREFIX")"
 
 if [[ -z "$TERMUX_PREFIX" || ! -x "$TERMUX_PREFIX/bin/sh" ]]; then
     log_error "Could not determine Termux prefix; ensure you are running inside Termux and that PREFIX is not corrupted."
