@@ -6,6 +6,16 @@
 
 set -e
 
+# Ensure the script is running under bash (Termux uses bash; some environments default to sh)
+if [[ -z "${BASH_VERSION:-}" ]]; then
+    if command -v bash >/dev/null 2>&1; then
+        exec bash "$0" "$@"
+    else
+        echo "[ERROR] Bash is required to run this installer."
+        exit 1
+    fi
+fi
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -84,7 +94,7 @@ if [[ -d "${HOME}/.oh-my-zsh" ]]; then
 else
     export RUNZSH=no
     export KEEP_ZSHRC=yes
-    sh -c "\$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" || log_error "Failed to install Oh My Zsh"
+    bash -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" || log_error "Failed to install Oh My Zsh"
 fi
 
 log_info "Installing Powerlevel10k theme..."
