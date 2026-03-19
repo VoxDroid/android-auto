@@ -20,15 +20,29 @@ if ! command -v termux-info >/dev/null 2>&1; then
     log_error "This script is intended to be run inside Termux on Android."
 fi
 
-# Determine Termux prefix (fixes cases where PREFIX is mis-set)
-TERMUX_PREFIX="${PREFIX:-}"
-if [[ -z "$TERMUX_PREFIX" || ! -x "$TERMUX_PREFIX/bin/sh" ]]; then
-    TERMUX_PREFIX="$(dirname "$(dirname "$(command -v sh 2>/dev/null || true)")")"
+# Determine Termux prefix (fixes cases where PREFIX is corrupted/mis-set)
+TERMUX_PREFIX="${PREFIX:-${TERMUX_PREFIX:-}}"
+
+# Prefer the canonical Termux prefix if it exists
+if [[ -x "/data/data/com.termux/files/usr/bin/sh" ]]; then
+    TERMUX_PREFIX="/data/data/com.termux/files/usr"
 fi
+
+# Fallback: try to derive prefix from the path of sh
 if [[ -z "$TERMUX_PREFIX" || ! -x "$TERMUX_PREFIX/bin/sh" ]]; then
-    log_error "Could not determine Termux prefix; ensure you are running inside Termux."
+    SHPATH="$(command -v sh 2>/dev/null || true)"
+    if [[ -n "$SHPATH" ]]; then
+        TERMUX_PREFIX="$(dirname "$(dirname "$SHPATH")")"
+    fi
 fi
+
+if [[ -z "$TERMUX_PREFIX" || ! -x "$TERMUX_PREFIX/bin/sh" ]]; then
+    log_error "Could not determine Termux prefix; ensure you are running inside Termux and that PREFIX is not corrupted."
+fi
+
 export PREFIX="$TERMUX_PREFIX"
+
+log_info "Detected Termux prefix: $TERMUX_PREFIX"
 
 read -p "Install Zsh + dependencies + JetBrains Mono Nerd Font in Termux? (y/N): " confirm
 if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
@@ -43,22 +57,21 @@ log_info "Installing dependencies..."
 pkg install -y zsh git curl wget unzip fontconfig || log_error "Failed to install dependencies"
 
 log_info "Installing Zsh plugins (autosuggestions, syntax highlighting)..."
-pkg install -y zsh-autosuggestions zsh-syntax-highlighting || log_warn "Failed to install zsh plugin packages"
 
 TERMUX_ZSH_PLUGIN_DIR="${TERMUX_PREFIX}/share/zsh/plugins"
 
-# Verify plugin installation; fall back to cloning from GitHub if missing.
+# Install plugins via git (preferred, avoids pkg naming/availability issues)
+mkdir -p "${TERMUX_ZSH_PLUGIN_DIR}"
+
 if [[ ! -f "${TERMUX_ZSH_PLUGIN_DIR}/zsh-autosuggestions/zsh-autosuggestions.zsh" ]]; then
-    log_warn "zsh-autosuggestions not found; attempting to install from GitHub..."
+    log_info "Cloning zsh-autosuggestions..."
     rm -rf "${TERMUX_ZSH_PLUGIN_DIR}/zsh-autosuggestions"
-    mkdir -p "${TERMUX_ZSH_PLUGIN_DIR}"
     git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions.git "${TERMUX_ZSH_PLUGIN_DIR}/zsh-autosuggestions" || log_warn "Failed to clone zsh-autosuggestions"
 fi
 
 if [[ ! -f "${TERMUX_ZSH_PLUGIN_DIR}/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]]; then
-    log_warn "zsh-syntax-highlighting not found; attempting to install from GitHub..."
+    log_info "Cloning zsh-syntax-highlighting..."
     rm -rf "${TERMUX_ZSH_PLUGIN_DIR}/zsh-syntax-highlighting"
-    mkdir -p "${TERMUX_ZSH_PLUGIN_DIR}"
     git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting.git "${TERMUX_ZSH_PLUGIN_DIR}/zsh-syntax-highlighting" || log_warn "Failed to clone zsh-syntax-highlighting"
 fi
 
